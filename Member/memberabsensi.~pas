@@ -1,0 +1,363 @@
+unit memberabsensi;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, StdCtrls, RzCmboBx, Mask, RzEdit, RzPanel,
+  AdvSmoothButton, Grids, DBGrids, RzDBGrid, RzLabel, ExtDlgs,
+  RzButton, RzLstBox, frxclass, CheckLst, strutils;
+
+type
+  Tfrmmemberabsensi = class(TForm)
+    Panelsales: TRzPanel;
+    RzPanel2: TRzPanel;
+    LblCaption: TRzLabel;
+    RzPanel3: TRzPanel;
+    RzLabel12: TRzLabel;
+    RzLabel14: TRzLabel;
+    CustBtnAdd: TAdvSmoothButton;
+    SellBtnDel: TAdvSmoothButton;
+    RzPanel1: TRzPanel;
+    RzLabel1: TRzLabel;
+    btn_refresh: TButton;
+    clb_nogroup: TCheckListBox;
+    RzPanel4: TRzPanel;
+    RzLabel16: TRzLabel;
+    RzLabel2: TRzLabel;
+    edt_nama: TRzEdit;
+    RzLabel5: TRzLabel;
+    edt_ktpno: TRzEdit;
+    RzLabel6: TRzLabel;
+    edt_hpno: TRzEdit;
+    RzLabel7: TRzLabel;
+    RzLabel8: TRzLabel;
+    edt_golongan: TRzEdit;
+    edt_tglreg: TRzEdit;
+    edt_cardno: TRzEdit;
+    edt_cardno2: TRzEdit;
+    edt_warning: TRzLabel;
+    procedure SellBtnDelClick(Sender: TObject);
+    procedure clb_nogroupClick(Sender: TObject);
+    procedure clb_nogroupKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure clb_nogroupKeyPress(Sender: TObject; var Key: Char);
+    procedure clb_nogroupKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure CustBtnAddClick(Sender: TObject);
+    procedure btn_refreshClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+  private
+    { Private declarations }
+    procedure inputcardno(nilai:string);
+    procedure resetinfomember;
+    procedure PrintStruck(vnogroup: string);
+  public
+    { Public declarations }
+    procedure FormShowFirst;
+  end;
+
+var
+  frmmemberabsensi: Tfrmmemberabsensi;
+  jumlabsenbelumcair : integer;
+  vnmtour : string;
+
+implementation
+
+uses SparePartFunction, U_cetak, Data;
+
+{$R *.dfm}
+
+procedure Tfrmmemberabsensi.PrintStruck(vnogroup: string);
+var
+  F : TextFile;
+  i,totrp : integer;
+  nmfile,vnumstr : string;
+begin
+  nmfile := vpath + 'absensistruk.txt';
+
+   Datamodule1.ZQrystruk.Close;
+   Datamodule1.ZQrystruk.Open;
+
+   AssignFile(F,nmfile);
+   Rewrite(F);
+   Writeln(F,'   '+Datamodule1.ZQrystrukcompany.value);
+   Writeln(F,' '+Datamodule1.ZQrystrukalamat.value);
+   Writeln(F,' '+Datamodule1.ZQrystrukphone.value);
+   Writeln(F,' =================================== ');
+   Writeln(F,' ABSENSI MEMBER');
+   Writeln(F,' Tanggal: ' + FormatDatetime('dd-mm-yyyy hh:nn:ss',tglskrg));
+   Writeln(F,' Lokasi : ' + lokasigudang);
+   Writeln(F,' Member : ' + edt_cardno2.text + ' ' + edt_nama.text);
+   Writeln(F,' Biro   : ' + vnmtour);
+   Writeln(F,' Group  : ' + vnogroup);
+   Writeln(F,' ----------------------------------- ');
+   i:=1;
+
+   Writeln(F,'');
+   Writeln(F,' Dibuat Oleh,       Mengetahui,');
+   Writeln(F,'');
+   Writeln(F,'');
+   Writeln(F,'');
+   Writeln(F,' (            )    (            )');
+   Writeln(F,'');
+   Writeln(F,'Printed By ' + UserName + ' ' + FormatDatetime('dd/mm/yyyy hh:nn:ss',getnow));
+   Writeln(F,'');
+   Writeln(F,'');
+   Writeln(F,'');
+   Writeln(F,chr(27)+chr(105));
+   Writeln(F,chr(27)+chr(112)+chr(0)+chr(50)+chr(250));
+
+   CloseFile(F);
+
+   Datamodule1.ZQrystruk.Close;
+
+   cetakFile(nmfile);
+
+end;
+
+procedure Tfrmmemberabsensi.resetinfomember;
+begin
+ edt_cardno2.Text := '';
+ edt_nama.text := '';
+ edt_ktpno.text := '';
+ edt_hpno.text := '';
+ edt_golongan.text := '';
+ edt_tglreg.Text := '';
+
+ edt_warning.Visible := false;
+
+ edt_cardno.Text := '';
+ edt_cardno.SetFocus;
+end;
+
+procedure Tfrmmemberabsensi.FormShowFirst;
+begin
+ ipcomp := getComputerIP;
+
+ lblCaption.Caption := 'Absensi Member '+formatdatetime('dd mmmm yyyy',tglskrg);
+
+ resetinfomember;
+
+ clb_nogroup.Clear;
+
+  Panelsales.Color := $0092C9C9;
+  if (DataModule1.ZConnection1.Catalog='sparepart52') then
+      Panelsales.Color := $00808040;
+
+  btn_refreshClick(btn_refresh);
+end;
+
+procedure Tfrmmemberabsensi.inputcardno(nilai:string);
+var bufstr : string;
+    i : integer;
+begin
+ bufstr := trim(nilai);
+
+ resetinfomember;
+
+ if bufstr='' then
+ begin
+  ErrorDialog('Isi data No. Card Member dahulu ....');
+  exit;
+ end;
+
+ if isdataexist('select nama from member where cardno='+Quotedstr(bufstr))=false then
+ begin
+  ErrorDialog('No. Card '+bufstr+' belum terdaftar ....');
+  exit;
+ end;
+
+ if isdataexist('select IDselltourgroup from memberabsensi where cardno=' + Quotedstr(bufstr) + ' and date(tgl)=CURRENT_DATE') then
+ begin
+  ErrorDialog('Maaf Member No.Card '+bufstr+' sudah Absen untuk hari ini ....');
+  exit;
+ end;
+
+ Datamodule1.ZQryUtil.Close;
+ Datamodule1.ZQryUtil.SQL.Text := 'select nama,ktpno,hpno,golongan,tglreg from member where cardno='+ Quotedstr(bufstr);
+ Datamodule1.ZQryUtil.Open;
+ edt_cardno2.Text := bufstr;
+ if Datamodule1.ZQryUtil.Fields[0].IsNull=false then edt_nama.Text := Datamodule1.ZQryUtil.Fields[0].AsString;
+ if Datamodule1.ZQryUtil.Fields[1].IsNull=false then edt_ktpno.Text := Datamodule1.ZQryUtil.Fields[1].AsString;
+ if Datamodule1.ZQryUtil.Fields[2].IsNull=false then edt_hpno.Text := Datamodule1.ZQryUtil.Fields[2].AsString;
+ if Datamodule1.ZQryUtil.Fields[3].IsNull=false then edt_golongan.Text := Datamodule1.ZQryUtil.Fields[3].AsString;
+ if Datamodule1.ZQryUtil.Fields[4].IsNull=false then edt_tglreg.Text := Formatdatetime('dd/mm/yyyy',Datamodule1.ZQryUtil.Fields[4].Asdatetime);
+ Datamodule1.ZQryUtil.Close;
+
+
+ jumlabsenbelumcair  := strtoint(getData('count(isprint)','memberabsensi where isprint=0 and cardno=' + Quotedstr(bufstr)));
+ edt_warning.Visible := jumlabsenbelumcair>=rewardcair;
+
+ { if (clb_nogroup.Items.Count>0) then
+ begin
+  for i:= 0 to clb_nogroup.items.count-1 do clb_nogroup.Checked[i]:=false;
+  if Datamodule1.ZQryUtil.Active then Datamodule1.ZQryUtil.Close;
+  Datamodule1.ZQryUtil.SQL.Clear;
+  Datamodule1.ZQryUtil.SQL.Add('select a.IDselltourgroup from memberabsensi a left join member m on a.idmember=m.id ');
+  Datamodule1.ZQryUtil.SQL.Add('where date(a.tgl)=CURRENT_DATE and m.cardno='+ bufstr);
+  Datamodule1.ZQryUtil.Open;
+  while not Datamodule1.ZQryUtil.Eof do
+  begin
+   clb_nogroup.Checked[clb_nogroup.Items.IndexOfObject(TObject(Datamodule1.ZQryUtil.Fields[0].AsInteger))]:=True;
+   Datamodule1.ZQryUtil.Next;
+  end;
+  Datamodule1.ZQryUtil.Close;
+ end;   }
+end;
+
+procedure Tfrmmemberabsensi.SellBtnDelClick(Sender: TObject);
+begin
+  FormShowfirst;
+end;
+
+procedure Tfrmmemberabsensi.clb_nogroupClick(Sender: TObject);
+begin
+ edt_cardno.Text := '';
+ edt_cardno.SetFocus;
+end;
+
+procedure Tfrmmemberabsensi.clb_nogroupKeyDown(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+begin
+ clb_nogroupClick(Sender);
+end;
+
+procedure Tfrmmemberabsensi.clb_nogroupKeyPress(Sender: TObject;
+  var Key: Char);
+begin
+ clb_nogroupClick(Sender);
+end;
+
+procedure Tfrmmemberabsensi.clb_nogroupKeyUp(Sender: TObject;
+  var Key: Word; Shift: TShiftState);
+begin
+ clb_nogroupClick(Sender);
+end;
+
+procedure Tfrmmemberabsensi.CustBtnAddClick(Sender: TObject);
+var S,vnogroup,vnogrp,vjnsbus  : string;
+    clbcount,SelectedMenu : integer;
+begin
+ SelectedMenu:=0;
+ for clbcount:= 0 to clb_nogroup.Items.Count-1 do
+  if clb_nogroup.Checked[clbcount] then
+  begin
+   SelectedMenu:=SelectedMenu + 1;
+   break;
+  end;
+ if (SelectedMenu=0)or(SelectedMenu>1) then
+ begin
+  ErrorDialog('Pilih satu data No. Rombongan dahulu ....');
+  edt_cardno.Text := '';
+  edt_cardno.SetFocus;
+  exit;
+ end;
+
+ if trim(edt_cardno2.Text)='' then
+ begin
+  ErrorDialog('Isi data No. Card Member dahulu ....');
+  resetinfomember;
+  exit;
+ end;
+
+ readandexecutesql_from_remotemysql;
+
+ if isdataexist('select nama from member where cardno='+Quotedstr(trim(edt_cardno2.Text)))=false then
+ begin
+  ErrorDialog('No. Card ini belum terdaftar ....');
+  resetinfomember;
+  exit;
+ end;
+
+ if isdataexist('select IDselltourgroup from memberabsensi where cardno=' + Quotedstr(trim(edt_cardno2.Text)) + ' and date(tgl)=CURRENT_DATE') then
+ begin
+  ErrorDialog('Maaf Member No.Card ini sudah Absen untuk hari ini ....');
+  resetinfomember;
+  exit;
+ end;
+
+// Datamodule1.ZConnection1.ExecuteDirect('delete from memberabsensi where date(tgl)=CURRENT_DATE and idmember=' + vidmember);
+
+ S := 'insert into memberabsensi (tgl,cardno,IDselltourgroup,nogroup,namatour,jenisbus,IDuser,username,lokasi) values (';
+ for clbcount:= 0 to clb_nogroup.Items.Count-1 do
+  if clb_nogroup.Checked[clbcount] then
+  begin
+   Datamodule1.ZQryUtil.close;
+   Datamodule1.ZQryUtil.SQL.Text := 'select nogroup,namatour,jenisbus from selltourgroup where IDselltourgroup=' + inttostr(longint(clb_nogroup.Items.Objects[clbcount]));
+   Datamodule1.ZQryUtil.Open;
+   vnogrp            := Datamodule1.ZQryUtil.Fields[0].AsString;
+   vnmtour           := Datamodule1.ZQryUtil.Fields[1].AsString;
+   vjnsbus := Datamodule1.ZQryUtil.Fields[2].AsString;
+   Datamodule1.ZQryUtil.Close;
+
+   vnogroup := vnogrp;
+   if rightstr(S,1)=')' then S := S + ',(';
+   tglskrg := getnow;
+   S := S + Quotedstr(formatdatetime('yyyy-mm-dd hh:nn:ss',tglskrg)) +','+ Quotedstr(trim(edt_cardno2.Text)) + ',' + inttostr(longint(clb_nogroup.Items.Objects[clbcount])) + ',' + Quotedstr(vnogrp) + ',' + Quotedstr(vnmtour) +',' + Quotedstr(vjnsbus) + ',' + inttostr(IDuserlogin) + ',' + Quotedstr(username) + ',' + Quotedstr(lokasigudang) + ')';
+  end;
+
+ S := S + ';';
+ if Datamodule1.ZConnection1.ExecuteDirect(S) then
+ begin
+  write_and_sendsql_to_remotemysql('('+Quotedstr(S)+');');
+  LogInfo(UserName,'Input Absensi Member No. Card '+edt_cardno2.Text);
+
+  PrintStruck(vnogroup);
+  PrintStruck(vnogroup);
+
+  jumlabsenbelumcair := jumlabsenbelumcair + 1;
+  if jumlabsenbelumcair>=rewardcair then
+     InfoDialog('Berhasil Input Absensi Member No. Card '+edt_cardno2.Text+', MOHON MELAKUKAN PENCAIRAN!!!')
+  else InfoDialog('Berhasil Input Absensi Member No. Card '+edt_cardno2.Text+' !');
+ end
+ else
+ begin
+  errorDialog('Gagal Input Absensi Member No. Card '+edt_cardno2.Text+' !');
+ end;
+
+ FormShowfirst;
+end;
+
+procedure Tfrmmemberabsensi.btn_refreshClick(Sender: TObject);
+begin
+ clb_nogroup.Clear;
+
+ DataModule1.ZQrySearch.Close;
+ DataModule1.ZQrySearch.SQL.text := 'select nogroup, namatour, IDselltourgroup from selltourgroup where date(tgl)=CURRENT_DATE and jenisbus<>0 order by nogroup';
+ DataModule1.ZQrySearch.Open;
+
+ if DataModule1.ZQrySearch.IsEmpty then infodialog('No. Rombongan Kosong')
+ else
+ begin
+  while not DataModule1.ZQrySearch.Eof do
+  begin
+   clb_nogroup.Items.AddObject(DataModule1.ZQrySearch.Fields[0].AsString+'   '+DataModule1.ZQrySearch.Fields[1].AsString,TObject(DataModule1.ZQrySearch.Fields[2].AsInteger));
+   DataModule1.ZQrySearch.Next;
+  end;
+ end;
+
+ DataModule1.ZQrySearch.Close;
+
+ edt_cardno.Text := '';
+ edt_cardno.SetFocus;
+end;
+
+procedure Tfrmmemberabsensi.FormShow(Sender: TObject);
+begin
+ FormShowFirst;
+end;
+
+procedure Tfrmmemberabsensi.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+ if (Key=VK_RETURN)and(trim(edt_cardno.Text)<>'') then
+ begin
+  inputcardno(edt_cardno.Text);
+ end;
+
+end;
+
+end.

@@ -1,0 +1,236 @@
+unit member;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, ExtCtrls, StdCtrls, RzCmboBx, Mask, RzEdit, RzPanel,
+  AdvSmoothButton, RzLabel, ExtDlgs, JPEG, DB,
+  RzButton, RzRadChk;
+
+type
+  TFrmmember = class(TForm)
+    Panelsales: TRzPanel;
+    RzPanel2: TRzPanel;
+    LblCaption: TRzLabel;
+    RzPanel3: TRzPanel;
+    RzLabel12: TRzLabel;
+    RzLabel14: TRzLabel;
+    BtnAdd: TAdvSmoothButton;
+    BtnDel: TAdvSmoothButton;
+    RzLabel2: TRzLabel;
+    edt_cardno: TRzEdit;
+    RzLabel5: TRzLabel;
+    edt_ktpno: TRzEdit;
+    RzLabel6: TRzLabel;
+    edt_hpno: TRzEdit;
+    RzLabel7: TRzLabel;
+    RzLabel9: TRzLabel;
+    mem_keterangan: TRzMemo;
+    RzLabel1: TRzLabel;
+    edt_nama: TRzEdit;
+    cb_golongan: TRzComboBox;
+    RzLabel8: TRzLabel;
+    dte_tglreg: TRzDateTimeEdit;
+    procedure BtnAddClick(Sender: TObject);
+    procedure BtnDelClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormShow(Sender: TObject);
+  private
+    procedure InsertData;
+    procedure UpdateData;
+    { Private declarations }
+  public
+    { Public declarations }
+    isbusrental : boolean;
+    procedure FormShowFirst;
+  end;
+
+var
+  Frmmember: TFrmmember;
+
+implementation
+
+uses membermaster, SparePartFunction, Data;
+
+{$R *.dfm}
+
+procedure TFrmmember.InsertData;
+var vktpno,vsqlfromme : string;
+begin
+  vktpno := 'null';
+  if trim(edt_ktpno.Text)<>'' then vktpno := QuotedStr(trim(edt_ktpno.Text));
+
+  vsqlfromme := 'insert ignore into member '+
+    '(cardno,nama,ktpno,hpno,golongan,tglreg,IDuser,username,lokasi,keterangan) values '+
+    '(' + QuotedStr(trim(edt_cardno.Text)) +
+    ',' + QuotedStr(trim(edt_nama.Text)) +
+    ',' + vktpno +
+    ',' + QuotedStr(trim(edt_hpno.Text)) +
+    ',' + QuotedStr(trim(cb_golongan.Text)) +
+    ',' + QuotedStr(getmysqldatestr(dte_tglreg.Date)) +
+    ',' + inttostr(IDuserlogin) +
+    ',' + QuotedStr(UserName) +
+    ',' + QuotedStr(lokasigudang) +
+    ',' + QuotedStr(trim(mem_keterangan.Text)) + ');';
+
+  if Datamodule1.ZConnection1.ExecuteDirect(vsqlfromme) then write_and_sendsql_to_remotemysql('('+Quotedstr(vsqlfromme)+');');
+end;
+
+procedure TFrmmember.UpdateData;
+var vktpno,vsqlfromme : string;
+begin
+  vktpno := 'null';
+  if trim(edt_ktpno.Text)<>'' then vktpno := QuotedStr(trim(edt_ktpno.Text));
+
+  vsqlfromme := 'update member set ' +
+      'cardno=' + QuotedStr(trim(edt_cardno.Text)) +
+      ',nama=' + QuotedStr(trim(edt_nama.Text)) +
+      ',ktpno=' + vktpno +
+      ',hpno=' + QuotedStr(trim(edt_hpno.Text)) +
+      ',golongan=' + QuotedStr(trim(cb_golongan.Text)) +
+      ',tglreg=' + QuotedStr(getmysqldatestr(dte_tglreg.Date)) +
+      ',IDuser=' + inttostr(IDuserlogin) +
+      ',username=' + QuotedStr(UserName) +
+      ',lokasi=' + QuotedStr(lokasigudang) +
+      ',keterangan=' + QuotedStr(trim(mem_keterangan.Text)) + ' ' +
+      'where cardno = ' + Quotedstr(Datamodule1.ZQrymembercardno.AsString);
+
+  if Datamodule1.ZConnection1.ExecuteDirect(vsqlfromme) then write_and_sendsql_to_remotemysql('('+Quotedstr(vsqlfromme)+');');
+end;
+
+
+procedure TFrmmember.FormShowFirst;
+begin
+  if LblCaption.Caption = 'Tambah Member' then
+  begin
+    dte_tglreg.Date := tglskrg;
+    edt_cardno.Text := '';
+    edt_nama.Text := '';
+    edt_ktpno.Text := '';
+    edt_hpno.Text := '';
+    cb_golongan.Text := '';
+    cb_golongan.ItemIndex := -1;
+    mem_keterangan.Text := '';
+  end
+  else
+  begin
+    dte_tglreg.Date := tglskrg;
+
+    edt_cardno.Text := '';
+    edt_nama.Text := '';
+    edt_ktpno.Text := '';
+    edt_hpno.Text := '';
+    cb_golongan.Text := '';
+    cb_golongan.ItemIndex := -1;
+    mem_keterangan.Text := '';
+
+    if DataModule1.ZQrymembertglreg.IsNull=false then
+    dte_tglreg.Date := DataModule1.ZQrymembertglreg.AsDateTime;
+
+    if DataModule1.ZQrymembernama.IsNull=false then
+    edt_nama.Text := DataModule1.ZQrymembernama.Value;
+
+    if DataModule1.ZQrymemberktpno.IsNull=false then
+    edt_ktpno.Text := DataModule1.ZQrymemberktpno.Value;
+
+    if DataModule1.ZQrymemberhpno.IsNull=false then
+    edt_hpno.Text := DataModule1.ZQrymemberhpno.Value;
+
+    if DataModule1.ZQrymembergolongan.IsNull=false then
+    cb_golongan.ItemIndex := cb_golongan.Items.IndexOf(DataModule1.ZQrymembergolongan.Value);
+
+    if DataModule1.ZQrymembercardno.IsNull=false then
+    edt_cardno.Text := DataModule1.ZQrymembercardno.Value;
+
+    if DataModule1.ZQrymemberketerangan.IsNull=false then
+    mem_keterangan.Text := DataModule1.ZQrymemberketerangan.Value;
+  end;
+end;
+
+procedure TFrmmember.BtnAddClick(Sender: TObject);
+begin
+  if trim(dte_tglreg.Text) = '' then
+  begin
+    ErrorDialog('Tanggal Registrasi harus diisi!');
+    dte_tglreg.SetFocus;
+    Exit;
+  end;
+
+  if trim(edt_cardno.Text) = '' then
+  begin
+    ErrorDialog('No.Card harus diisi!');
+    edt_cardno.SetFocus;
+    Exit;
+  end;
+
+  if trim(edt_nama.Text) = '' then
+  begin
+    ErrorDialog('Nama harus diisi!');
+    edt_nama.SetFocus;
+    Exit;
+  end;
+
+  if (cb_golongan.ItemIndex<0)or(cb_golongan.Text='') then
+  begin
+    ErrorDialog('Golongan harus diisi!');
+    cb_golongan.SetFocus;
+    Exit;
+  end;
+
+  readandexecutesql_from_remotemysql;
+  if (LblCaption.Caption = 'Tambah Member')and(isdataexist('select nama from member where cardno=' + Quotedstr(trim(edt_cardno.Text)) + ' or nama=' + Quotedstr(trim(edt_nama.Text)) )) then
+  begin
+   errordialog('No.Card atau Nama sudah terdaftar!');
+   exit;
+  end;
+
+  if (LblCaption.Caption = 'Edit Member')and(isdataexist('select nama from member where ((cardno<>'+Quotedstr(Datamodule1.ZQrymembercardno.Value)+')and(nama<>'+Quotedstr(Datamodule1.ZQrymembernama.Value)+')) and ((cardno=' + Quotedstr(trim(edt_cardno.Text)) + ')or(nama=' + Quotedstr(trim(edt_nama.Text)) + '))' )) then
+  begin
+   errordialog('No.Card atau Nama sudah terdaftar!');
+   exit;
+  end;
+
+  if LblCaption.Caption = 'Tambah Member' then
+  begin
+    InsertData;
+    InfoDialog('Tambah Member ' + edt_cardno.Text + ' berhasil');
+    LogInfo(UserName,'Insert Member No.Card: ' + edt_cardno.Text + ',nama : ' + edt_nama.Text);
+  end
+  else
+  begin
+    UpdateData;
+    InfoDialog('Edit Member ' + edt_cardno.Text + ' berhasil');
+    LogInfo(UserName,'Edit Member No.Card: ' + edt_cardno.Text + ',nama : ' + edt_nama.Text);
+  end;
+  Close;
+end;
+
+procedure TFrmmember.BtnDelClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TFrmmember.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+ IF Frmmembermaster=nil then
+ application.CreateForm(TFrmmembermaster,Frmmembermaster);
+ Frmmembermaster.Align:=alclient;
+ Frmmembermaster.Parent:=Self.Parent;
+ Frmmembermaster.BorderStyle:=bsnone;
+ Frmmembermaster.FormShowFirst;
+ Frmmembermaster.Show;
+
+
+end;
+
+procedure TFrmmember.FormShow(Sender: TObject);
+begin
+  Panelsales.Color := $0092C9C9;
+  if (DataModule1.ZConnection1.Catalog='sparepart52') then
+      Panelsales.Color := $00808040;
+
+  edt_cardno.SetFocus;
+end;
+
+end.

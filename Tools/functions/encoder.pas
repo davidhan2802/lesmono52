@@ -1,0 +1,389 @@
+// Delphi Encoder Class for Code128 and UCC/EAN128
+// Copyright 2005 by MW6 Technologies Inc. All rights reserved.
+//
+// This code may not be modified or distributed unless you purchase
+// the license from MW6.
+
+unit Encoder;
+
+interface
+
+uses
+   SysUtils;
+
+        procedure GeneralEncode();
+
+        function Code128Auto(var Src: string): string;
+        function Code128A(var Src: string): string;
+        function Code128B(var Src: string): string;
+        function Code128C(var Src: string): string;
+        function UCCEAN128(var Src: string): string;
+
+var     I: Integer;
+        StrLen: Integer;
+        Sum: Integer;
+        CurrSet: Integer;
+        CurrChar: Integer;
+        NextChar: Integer;
+        EncodedMessage: AnsiString;
+        Weight: Integer;
+        Buf: array[0..255] of Char;
+
+
+implementation
+
+procedure GeneralEncode();
+var
+  tmp: Integer;
+  CurrDone: boolean;
+begin
+  I := 1;
+  while (I <= StrLen) do
+  begin
+       CurrChar := Ord(Buf[I - 1]);
+       CurrDone := false;
+       if ((I + 1) <= StrLen) then
+       begin
+            NextChar := Ord(Buf[I]);
+            If (CurrChar >= Ord('0')) And (CurrChar <= Ord('9')) And
+               (NextChar >= Ord('0')) And (NextChar <= Ord('9')) Then
+            begin
+                tmp := (CurrChar - Ord('0')) * 10 + (NextChar - Ord('0'));
+
+                // 2 digits
+                if (CurrSet <> 3) Then
+                begin
+                    // the previous set is not Set C
+                    EncodedMessage := ENcodedMessage + Chr(99 + 98);
+                    Sum := Sum + Weight * 99;
+                    Weight := Weight + 1;
+                    CurrSet := 3;
+                end;
+
+                If (tmp = 0) then
+                    EncodedMessage := EncodedMessage + Chr(192)
+                else if (tmp > 0) And (tmp < 95) Then
+                    EncodedMessage := EncodedMessage + Chr(tmp + 32)
+                else
+                    EncodedMessage :=  EncodedMessage + Chr(tmp + 98);
+
+                Sum := Sum + Weight * tmp;
+                I := I + 2;
+
+                CurrDone := True;
+            end;
+        end;
+
+        If (Not CurrDone) Then
+        begin
+            if (CurrChar >= 0) And (CurrChar <= 31) Then
+            begin
+                // choose Set A
+                if (CurrSet <> 1) Then
+                begin
+                    // the previous set is not Set A
+                    EncodedMessage := EncodedMessage + Chr(101 + 98);
+                    Sum := Sum + Weight * 101;
+                    Weight := Weight + 1;
+                    CurrSet := 1;
+                end;
+
+                if (CurrChar = 31) Then
+                begin
+                    EncodedMessage := EncodedMessage + Chr(193);
+                    Sum := Sum + Weight * 95;
+                end
+                else
+                begin
+                    EncodedMessage := EncodedMessage + Chr(CurrChar + 96);
+                    Sum := Sum + Weight * (CurrChar + 64);
+                end;
+            end
+            else
+            begin
+                // choose Set B
+                if (CurrSet <> 2) Then
+                begin
+                   // the previous set is not Set B
+                   EncodedMessage := EncodedMessage + Chr(100 + 98);
+                   Sum := Sum + Weight * 100;
+                   Weight := Weight + 1;
+                   CurrSet := 2;
+                end;
+
+                if (CurrChar = 32) Then
+                   EncodedMessage := EncodedMessage + Chr(192)
+                else if (CurrChar = 127) Then
+                begin
+                   EncodedMessage := EncodedMessage + Chr(193);
+                   Sum := Sum + Weight * 95;
+                end
+                else if (CurrChar < 127) And (CurrChar > 32) Then
+                begin
+                   EncodedMessage := EncodedMessage + Chr(CurrChar);
+                   Sum := Sum + Weight * (CurrChar - 32);
+                end;
+            end;
+
+            I := I + 1;
+        end;
+
+        Weight := Weight + 1;
+  end;
+
+  // add CheckDigit
+  Sum := Sum Mod 103;
+  If (Sum = 0) Then
+     EncodedMessage := EncodedMessage + Chr(192)
+  else if (Sum <= 94) Then
+     EncodedMessage := EncodedMessage + Chr(Sum + 32)
+  else
+     EncodedMessage := EncodedMessage + Chr(Sum + 98);
+
+  // add stop character (204)
+  EncodedMessage := EncodedMessage + Chr(204);
+end;
+
+function Code128Auto(var Src: string): string;
+begin
+    StrLen := Length(Src);
+    Sum := 104;
+
+    // 2 indicates Set B
+    CurrSet := 2;
+
+    // start character with value 202 for Set B
+    EncodedMessage := ''  + Chr(202);
+
+    StrPCopy(Buf, Src);
+    CurrChar := Ord(Buf[0]);
+    If (CurrChar <= 31) ANd (CurrChar >= 0) then
+    begin
+        // switch to Set A
+        // 1 indicates Set A
+        CurrSet := 1;
+
+        // start character with value 201 for Set A
+        EncodedMessage := '' + Chr(201);
+        Sum := 103;
+    end;
+
+    Weight := 1;
+    GeneralEncode();
+
+    Result := EncodedMessage;
+end;
+
+function UCCEAN128(var Src: string): string;
+begin
+    StrLen := Length(Src);
+    Sum := 105;
+
+    // 3 indicates Set C
+    CurrSet := 3;
+
+    // start character (203) + FNC1 (200)
+    EncodedMessage := '' + Chr(203) + Chr(200);
+    Sum := Sum + 102;
+    Weight := 2;
+
+    StrPCopy(Buf, Src);
+    GeneralEncode();
+
+    Result := EncodedMessage;
+end;
+
+function Code128A(var Src: string): string;
+var
+    m: Integer;
+begin
+    StrLen := Length(Src);
+    Sum := 103;
+
+    // start character (201) for Set A
+    EncodedMessage := '' + Chr(201);
+
+    Weight := 1;
+    StrPCopy(Buf, Src);
+    For m := 1 To StrLen do
+    begin
+        CurrChar := Ord(Buf[m - 1]);
+        If (CurrChar = 32) Then
+            EncodedMessage := EncodedMessage + Chr(192)
+        else If (CurrChar = 31) Then
+        begin
+            EncodedMessage := EncodedMessage + Chr(193);
+            Sum := Sum + Weight * 95;
+        end
+        else if (CurrChar <= 95) And (CurrChar > 32) Then
+        begin
+            EncodedMessage := EncodedMessage + Chr(CurrChar);
+            Sum := Sum + Weight * (CurrChar - 32);
+        end
+        else if (CurrChar >= 0) And (CurrChar <= 31) Then
+        begin
+            EncodedMessage := EncodedMessage + Chr(CurrChar + 96);
+            Sum := Sum + Weight * (CurrChar + 64);
+        end
+        else
+        begin
+            Result := Code128Auto(Src);
+            Exit;
+        end;
+        Weight := Weight + 1;
+    end;
+
+    // add CheckDigit
+    Sum := Sum Mod 103;
+    If (Sum = 0) Then
+       EncodedMessage := EncodedMessage + Chr(192)
+    else if (Sum <= 94) Then
+       EncodedMessage := EncodedMessage + Chr(Sum + 32)
+    else
+       EncodedMessage := EncodedMessage + Chr(Sum + 98);
+
+    // add stop character (204)
+    EncodedMessage := EncodedMessage + Chr(204);
+
+    Result := EncodedMessage;
+end;
+
+function Code128B(var Src: string): string;
+var
+    m: Integer;
+begin
+    StrLen := Length(Src);
+    Sum := 104;
+
+    // start character (202) for Set B
+    EncodedMessage := '' + Chr(202);
+
+    Weight := 1;
+    StrPCopy(Buf, Src);
+    For m := 1 To StrLen do
+    begin
+        CurrChar := Ord(Buf[m - 1]);
+        if (CurrChar = 32) Then
+            EncodedMessage := EncodedMessage + Chr(192)
+        else if (CurrChar = 127) Then
+        begin
+            EncodedMessage := EncodedMessage + Chr(193);
+            Sum := Sum + Weight * 95;
+        end
+        else if (CurrChar < 127) And (CurrChar > 32) Then
+        begin
+            EncodedMessage := EncodedMessage + Chr(CurrChar);
+            Sum := Sum + Weight * (CurrChar - 32);
+        end
+        else
+        begin
+            Result := Code128Auto(Src);
+            Exit;
+        end;
+
+        Weight := Weight + 1;
+    end;
+
+     // add CheckDigit
+    Sum := Sum Mod 103;
+    If (Sum = 0) Then
+       EncodedMessage := EncodedMessage + Chr(192)
+    else if (Sum <= 94) Then
+       EncodedMessage := EncodedMessage + Chr(Sum + 32)
+    else
+       EncodedMessage := EncodedMessage + Chr(Sum + 98);
+
+    // add stop character (204)
+    EncodedMessage := EncodedMessage + Chr(204);
+
+    Result := EncodedMessage;
+end;
+
+function Code128C(var Src: string): string;
+var
+    tmp: Integer;
+begin
+    StrLen := Length(Src);
+    Sum := 105;
+
+    // start character (203) for Set C
+    EncodedMessage := '' + Chr(205);
+
+    Weight := 1;
+    I := 1;
+    StrPCopy(Buf, Src);
+    While (I <= StrLen) do
+    begin
+        CurrChar := Ord(Buf[I - 1]);
+        if ((I + 1) <= StrLen) then
+        begin
+            NextChar := Ord(Buf[I]);
+
+            If (CurrChar >= Ord('0')) And (CurrChar <= Ord('9')) And
+               (NextChar >= Ord('0')) And (NextChar <= Ord('9')) then
+            begin
+                // 2 digits
+                tmp := (CurrChar - Ord('0')) * 10 + (NextChar - Ord('0'));
+
+                If (tmp = 0) Then
+                    EncodedMessage := EncodedMessage + Chr(192)
+                else if (tmp > 0) And (tmp < 95) Then
+                    EncodedMessage := EncodedMessage + Chr(tmp + 32)
+                else
+                    EncodedMessage := EncodedMessage + Chr(tmp + 98);
+
+                Sum := Sum + Weight * tmp;
+                I := I + 2;
+            end
+            else
+            begin
+                Result := Code128Auto(Src);
+                Exit;
+            end;
+        end
+        else
+        begin
+            EncodedMessage := EncodedMessage +  Chr(198);
+            Sum := Sum + Weight * 100;
+            Weight := Weight + 1;
+
+            if (CurrChar = 32) then
+                EncodedMessage := EncodedMessage + Chr(192)
+            else if (CurrChar = 127) then
+            begin
+                EncodedMessage := EncodedMessage + Chr(193);
+                Sum := Sum + Weight * 95;
+            end
+            else if (CurrChar < 127) And (CurrChar > 32) then
+            begin
+                EncodedMessage := EncodedMessage +  Chr(CurrChar);
+                Sum := Sum + Weight * (CurrChar - 32);
+            end
+            else
+            begin
+                Result := Code128Auto(Src);
+                Exit;
+            end;
+
+            I := I + 1;
+        end;
+
+        Weight := Weight + 1;
+    end;
+
+     // add CheckDigit
+    Sum := Sum Mod 103;
+    If (Sum = 0) Then
+       EncodedMessage := EncodedMessage + Chr(192)
+    else if (Sum <= 94) Then
+       EncodedMessage := EncodedMessage + Chr(Sum + 32)
+    else
+       EncodedMessage := EncodedMessage + Chr(Sum + 98);
+
+    // add stop character (204)
+    EncodedMessage := EncodedMessage + Chr(206);
+
+    Result := EncodedMessage;
+end;
+
+end.                                          

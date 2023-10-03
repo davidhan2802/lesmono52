@@ -1,0 +1,14 @@
+
+CREATE TABLE `sqlfrommdk` (
+  `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `sqlcmd` VARCHAR(500) COLLATE latin1_swedish_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+)ENGINE=InnoDB
+AUTO_INCREMENT=19 CHARACTER SET 'latin1' COLLATE 'latin1_swedish_ci';
+
+CREATE TABLE `sqlfromslw` (
+  `id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `sqlcmd` VARCHAR(500) COLLATE latin1_swedish_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+)ENGINE=InnoDB
+AUTO_INCREMENT=9 CHARACTER SET 'latin1' COLLATE 'latin1_swedish_ci';

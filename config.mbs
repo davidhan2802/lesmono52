@@ -1,0 +1,27 @@
+[Working Date]
+2011-04-01
+
+[Status]
+Nama Cabang = MADUKORO
+IP Server = localhost
+Alamat = JL. MADUKORO RAYA NO.3 SEMARANG
+         
+Telp = 
+Fax = 
+Kota = Semarang
+Wilayah = Jawa Tengah
+
+[Printers]
+Struk Printer = USB002
+Report Printer = 
+
+[stand]
+Pos = 01
+
+[Gudang]
+Gdg = SL
+
+[Folder Pindah Gudang]
+Loc = E:/bufext
+Barcode Printer = Default
+
